@@ -2,7 +2,7 @@ import { Prop, Schema, SchemaFactory } from '@nestjs/mongoose';
 import { Document, Types } from 'mongoose';
 
 export type MessageDocument = Message & Document;
-
+//salom
 export type MessageType = 'text' | 'emoji' | 'image' | 'system';
 
 @Schema({ timestamps: true })
