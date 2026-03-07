@@ -5,8 +5,12 @@ import { AppModule } from './app.module';
 async function bootstrap() {
   const app = await NestFactory.create(AppModule);
 
+  const allowedOrigins = process.env.CLIENT_URL
+    ? process.env.CLIENT_URL.split(',').map((o) => o.trim())
+    : ['http://localhost:5173', 'https://fabulous-fudge-768e9d.netlify.app'];
+
   app.enableCors({
-    origin: process.env.CLIENT_URL || 'http://localhost:5173',
+    origin: allowedOrigins,
     credentials: true,
   });
 
