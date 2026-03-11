@@ -49,8 +49,10 @@ export class ChatController {
       });
 
       if (!res.ok) throw new Error(`Xirsys error: ${res.status}`);
-      const data = await res.json() as { v: { iceServers: RTCIceServer[] } };
-      return data.v.iceServers;
+      // Xirsys { v: { iceServers: object | object[] } } formatida qaytaradi
+      const data = await res.json() as { v: { iceServers: RTCIceServer | RTCIceServer[] } };
+      const raw = data.v.iceServers;
+      return Array.isArray(raw) ? raw : [raw];
     } catch (err) {
       console.error('ICE servers fetch failed:', err);
       throw new InternalServerErrorException('ICE servers olishda xato');
