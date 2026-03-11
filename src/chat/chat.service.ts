@@ -49,7 +49,8 @@ export class ChatService {
   async getRoomById(roomId: string) {
     return this.roomModel
       .findById(roomId)
-      .populate('members', '-password');
+      .populate('members', '-password')
+      .lean();
   }
 
   // ----- MESSAGES -----
@@ -107,7 +108,7 @@ export class ChatService {
     }
 
     await msg.save();
-    return msg;
+    return msg.populate({ path: 'sender', select: 'username avatar' });
   }
 
   async deleteMessage(messageId: string, userId: string) {

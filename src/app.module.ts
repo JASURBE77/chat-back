@@ -8,13 +8,21 @@ import { ChatModule } from './chat/chat.module';
 @Module({
   imports: [
     ConfigModule.forRoot({ isGlobal: true }),
+
     MongooseModule.forRootAsync({
       imports: [ConfigModule],
       inject: [ConfigService],
-      useFactory: (config: ConfigService) => ({
-        uri: config.get<string>('MONGODB_URI'),
-      }),
+      useFactory: (config: ConfigService) => {
+        const uri = config.get<string>('MONGODB_URI');
+
+        console.log('Mongo URI:', uri); // 👈 .env dan kelayotgan qiymat
+
+        return {
+          uri: uri,
+        };
+      },
     }),
+
     AuthModule,
     UsersModule,
     ChatModule,

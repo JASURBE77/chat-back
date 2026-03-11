@@ -15,9 +15,10 @@ import { UsersService } from '../users/users.service';
 
 @WebSocketGateway({
   cors: {
-    origin: '*',
+    origin: true,
     credentials: true,
   },
+  transports: ['websocket', 'polling'],
 })
 export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect {
   @WebSocketServer()
@@ -174,7 +175,7 @@ export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect {
   @SubscribeMessage('callUser')
   handleCallUser(
     @ConnectedSocket() client: Socket,
-    @MessageBody() data: { targetUserId: string; offer: RTCSessionDescriptionInit; callerName: string },
+    @MessageBody() data: { targetUserId: string; signal: any; callerName: string },
   ) {
     const targetSocket = this.findSocketByUserId(data.targetUserId);
     if (!targetSocket) {
@@ -184,18 +185,18 @@ export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect {
     targetSocket.emit('incomingCall', {
       callerId: client.data.userId,
       callerName: client.data.username,
-      offer: data.offer,
+      signal: data.signal,
     });
   }
 
   @SubscribeMessage('answerCall')
   handleAnswerCall(
     @ConnectedSocket() client: Socket,
-    @MessageBody() data: { callerId: string; answer: RTCSessionDescriptionInit },
+    @MessageBody() data: { callerId: string; signal: any },
   ) {
     const callerSocket = this.findSocketByUserId(data.callerId);
     if (callerSocket) {
-      callerSocket.emit('callAnswered', { answer: data.answer });
+      callerSocket.emit('callAnswered', { signal: data.signal });
     }
   }
 
@@ -218,17 +219,6 @@ export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect {
     const targetSocket = this.findSocketByUserId(data.targetUserId);
     if (targetSocket) {
       targetSocket.emit('callEnded');
-    }
-  }
-
-  @SubscribeMessage('iceCandidate')
-  handleIceCandidate(
-    @ConnectedSocket() client: Socket,
-    @MessageBody() data: { targetUserId: string; candidate: RTCIceCandidateInit },
-  ) {
-    const targetSocket = this.findSocketByUserId(data.targetUserId);
-    if (targetSocket) {
-      targetSocket.emit('iceCandidate', { candidate: data.candidate });
     }
   }
 
