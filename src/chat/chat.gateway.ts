@@ -7,6 +7,7 @@ import {
   MessageBody,
   ConnectedSocket,
 } from '@nestjs/websockets';
+import { OnApplicationBootstrap } from '@nestjs/common';
 import { Server, Socket } from 'socket.io';
 import { JwtService } from '@nestjs/jwt';
 import { ConfigService } from '@nestjs/config';
@@ -20,11 +21,14 @@ import { UsersService } from '../users/users.service';
   },
   transports: ['websocket', 'polling'],
 })
-export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect {
+export class ChatGateway
+  implements OnGatewayConnection, OnGatewayDisconnect, OnApplicationBootstrap
+{
   @WebSocketServer()
   server: Server;
 
-  private connectedUsers = new Map<string, string>(); // socketId -> userId
+  // socketId -> userId
+  private connectedUsers = new Map<string, string>();
 
   constructor(
     private chatService: ChatService,
@@ -32,6 +36,12 @@ export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect {
     private jwtService: JwtService,
     private config: ConfigService,
   ) {}
+
+  // Server (re)start bo'lganda barcha userlarni offline qilamiz
+  // (Render deploy'da stale isOnline: true qolmasin)
+  async onApplicationBootstrap() {
+    await this.usersService.setAllOffline();
+  }
 
   async handleConnection(client: Socket) {
     try {
@@ -58,6 +68,10 @@ export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect {
       const rooms = await this.chatService.getUserRooms(userId);
       rooms.forEach((room) => client.join(room._id.toString()));
 
+      // Yangi ulanuvchiga hozir online bo'lgan barcha userlarni yuboramiz
+      const onlineUserIds = Array.from(new Set(Array.from(this.connectedUsers.values())));
+      client.emit('onlineUsersList', { userIds: onlineUserIds });
+
       this.server.emit('userOnline', { userId });
     } catch {
       client.disconnect();
@@ -68,8 +82,13 @@ export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect {
     const userId = this.connectedUsers.get(client.id);
     if (userId) {
       this.connectedUsers.delete(client.id);
-      await this.usersService.setOnlineStatus(userId, false);
-      this.server.emit('userOffline', { userId });
+
+      // Foydalanuvchining boshqa socket ulanishlari bormi? (multi-tab)
+      const hasOtherConnection = Array.from(this.connectedUsers.values()).includes(userId);
+      if (!hasOtherConnection) {
+        await this.usersService.setOnlineStatus(userId, false);
+        this.server.emit('userOffline', { userId });
+      }
     }
   }
 
@@ -197,6 +216,18 @@ export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect {
     const callerSocket = this.findSocketByUserId(data.callerId);
     if (callerSocket) {
       callerSocket.emit('callAnswered', { signal: data.signal });
+    }
+  }
+
+  // Trickle ICE candidate relay — har ikki tomon uchun
+  @SubscribeMessage('callTrickle')
+  handleCallTrickle(
+    @ConnectedSocket() client: Socket,
+    @MessageBody() data: { targetUserId: string; candidate: any },
+  ) {
+    const targetSocket = this.findSocketByUserId(data.targetUserId);
+    if (targetSocket) {
+      targetSocket.emit('callTrickle', { candidate: data.candidate });
     }
   }
 

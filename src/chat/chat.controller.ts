@@ -48,13 +48,25 @@ export class ChatController {
         body: JSON.stringify({ format: 'urls' }),
       });
 
-      if (!res.ok) throw new Error(`Xirsys error: ${res.status}`);
-      // Xirsys { v: { iceServers: object | object[] } } formatida qaytaradi
+      if (!res.ok) {
+        const errText = await res.text().catch(() => '');
+        console.error(`[Xirsys] HTTP ${res.status}: ${errText}`);
+        throw new Error(`Xirsys HTTP error: ${res.status} ${errText}`);
+      }
+
       const data = await res.json() as { v: { iceServers: RTCIceServer | RTCIceServer[] } };
+
+      if (!data?.v?.iceServers) {
+        console.error('[Xirsys] Unexpected response format:', JSON.stringify(data));
+        throw new Error('Xirsys response format unexpected');
+      }
+
       const raw = data.v.iceServers;
-      return Array.isArray(raw) ? raw : [raw];
+      const servers = Array.isArray(raw) ? raw : [raw];
+      console.log(`[Xirsys] OK — ${servers.length} ICE servers returned`);
+      return servers;
     } catch (err) {
-      console.error('ICE servers fetch failed:', err);
+      console.error('[Xirsys] ICE servers fetch failed:', err);
       throw new InternalServerErrorException('ICE servers olishda xato');
     }
   }

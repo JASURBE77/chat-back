@@ -44,6 +44,10 @@ export class UsersService {
     });
   }
 
+  async setAllOffline(): Promise<void> {
+    await this.userModel.updateMany({ isOnline: true }, { isOnline: false, lastSeen: new Date() });
+  }
+
   async updateProfile(userId: string, data: Partial<User>): Promise<UserDocument> {
     const user = await this.userModel
       .findByIdAndUpdate(userId, data, { new: true })
