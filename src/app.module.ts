@@ -15,7 +15,7 @@ import { ChatModule } from './chat/chat.module';
       useFactory: (config: ConfigService) => {
         const uri = config.get<string>('MONGODB_URI');
 
-        console.log('Mongo URI:', uri); // 👈 .env dan kelayotgan qiymat
+        console.log('Mongo URI:', uri); // 👈 .env dan kelayotgan qiymat efrf
 
         return {
           uri: uri,
